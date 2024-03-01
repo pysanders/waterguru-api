@@ -4,6 +4,7 @@ import traceback
 
 import boto3
 import requests
+from datetime import datetime
 from flask import Flask, Response, jsonify
 from redis import Redis
 from requests_aws4auth import AWS4Auth
@@ -21,7 +22,7 @@ DEBUG = os.environ.get('DEBUG', False)
 logging.basicConfig(level=logging.DEBUG)
 app = Flask(__name__)
 app.config.from_object(__name__)
-app.config['SECRET_KEY'] = '32624076087108375603827608353'
+app.config['SECRET_KEY'] = os.urandom(24)
 
 r = Redis(host=os.environ.get('REDIS', '192.168.1.3'), decode_responses=True)
 
@@ -79,12 +80,18 @@ def wg_auth():
         session_token = credentials['SessionToken']
         expiration = credentials['Expiration']
 
-        app.logger.info(f"Auth expires: {expiration}")
+        current_datetime = datetime.now()
+        time_difference = expiration - current_datetime
+        difference_in_seconds = time_difference.total_seconds()
+        token_life = difference_in_seconds - 300
 
-        r.setex('wg_userId', 3540, user_id)
-        r.setex('wg_access_key_id', 3540, access_key_id)
-        r.setex('wg_secret_key', 3540, secret_key)
-        r.setex('wg_session_token', 3540, session_token)
+        app.logger.info(f"Auth expires: {expiration} Token Life: {token_life}")
+
+        r.setex('wg_userId', token_life, user_id)
+        r.setex('wg_access_key_id', token_life, access_key_id)
+        r.setex('wg_secret_key', token_life, secret_key)
+        r.setex('wg_session_token', token_life, session_token)
+
         wg_userId = user_id
         wg_access_key_id = access_key_id
         wg_secret_key = secret_key
