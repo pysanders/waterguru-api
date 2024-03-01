@@ -1,3 +1,4 @@
+#!/bin/bash
 FROM python:3.9-bookworm as build
 ENV TZ=America/New_York
 ENV WG_USER=''
