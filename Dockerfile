@@ -1,4 +1,4 @@
-FROM python:3.9
+FROM python:3.9-bookworm as build
 ENV TZ=America/New_York
 ENV WG_USER=''
 ENV WG_PASS=''
