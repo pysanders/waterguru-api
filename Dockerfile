@@ -1,5 +1,5 @@
 #!/bin/bash
-FROM python:3.9-bookworm as build
+FROM amd64/python:3.9-slim-buster
 ENV TZ=America/New_York
 ENV WG_USER=''
 ENV WG_PASS=''
