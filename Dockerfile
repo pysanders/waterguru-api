@@ -1,4 +1,4 @@
-FROM python:3.9-slim-buster
+FROM python:3.9
 ENV TZ=America/New_York
 
 ARG WG_USER
@@ -10,8 +10,8 @@ WORKDIR /code
 
 RUN apt-get update -y && \
     apt-get install -y gcc git && \
-    pip install requests_aws4auth boto3 flask warrant && \
-	git clone https://github.com/bdwilson/waterguru-api && \
+	git clone https://github.com/pysanders/waterguru-api && \
+    pip install -r /code/waterguru-api/requirements.txt && \
 	sed -i "s/WG_USER/${WG_USER}/" /code/waterguru-api/waterguru_flask.py && \
 	sed -i "s/WG_PASS/${WG_PASS}/" /code/waterguru-api/waterguru_flask.py && \
 	sed -i "s/WG_PORT/${WG_PORT}/" /code/waterguru-api/waterguru_flask.py && \
