@@ -5,7 +5,7 @@ import traceback
 
 import boto3
 import requests
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from flask import Flask, Response, jsonify
 from redis import Redis
 from requests_aws4auth import AWS4Auth
@@ -20,15 +20,21 @@ from warrant.aws_srp import AWSSRP
 
 # App config.
 DEBUG = os.environ.get('DEBUG', False)
-logging.basicConfig(level=logging.DEBUG)
+if DEBUG:
+    logging.basicConfig(level=logging.DEBUG)
+else:
+    logging.basicConfig(level=logging.INFO)
+
 app = Flask(__name__)
 app.config.from_object(__name__)
 app.config['SECRET_KEY'] = os.urandom(24)
 
-r = Redis(host=os.environ.get('REDIS', '192.168.1.3'), decode_responses=True)
+r = Redis(host=os.environ.get('REDIS', '192.168.1.3'),
+          db=int(os.environ.get('REDIS_DB', 0)),
+          decode_responses=True)
 
 config = {
-    "port": "WG_PORT",  # port for your service to run on
+    "port": 53255,  # port for your service to run on
     "user": os.environ['WG_USER'],
     "pass": os.environ['WG_PASS']
 }
@@ -81,17 +87,21 @@ def wg_auth():
         session_token = credentials['SessionToken']
         expiration = credentials['Expiration']
 
-        current_datetime = datetime.now()
-        time_difference = expiration - current_datetime
-        difference_in_seconds = time_difference.total_seconds()
-        token_life = difference_in_seconds - 300
 
-        app.logger.info(f"Auth expires: {expiration} Token Life: {token_life}")
+        # Convert expiration to a timezone-aware datetime with EST offset
+        expiration = expiration.astimezone(timezone(timedelta(hours=-5)))
+        current_datetime = datetime.now(timezone.utc)
+        time_difference = expiration - current_datetime
+        difference_in_seconds = round(time_difference.total_seconds())
+        token_life = difference_in_seconds - 300
 
         r.setex('wg_userId', token_life, user_id)
         r.setex('wg_access_key_id', token_life, access_key_id)
         r.setex('wg_secret_key', token_life, secret_key)
         r.setex('wg_session_token', token_life, session_token)
+        r.setex('wg_refresh_token', token_life, refresh_token)
+        r.setex('wg_access_token', token_life, access_token)
+        r.setex('wg_id_token', token_life, id_token)
 
         wg_userId = user_id
         wg_access_key_id = access_key_id
@@ -147,4 +157,4 @@ def api():
 
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=config['port'], debug=False)
+    app.run(host='0.0.0.0', port=config['port'], debug=DEBUG)
